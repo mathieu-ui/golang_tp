@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	fmt.Println("111")
+	fmt.Println("Server is running on port 3333")
 
 	f := make(Ferme)
 
@@ -36,7 +36,6 @@ func main() {
 
 		err := json.NewDecoder(r.Body).Decode(&m)
 
-		fmt.Println()
 		if err != nil {
 			fmt.Println(err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -46,14 +45,40 @@ func main() {
 
 		AddSheep(f, m.Id, m.Id, m.Name, m.Age, m.Weight)
 
-		// b, err := io.ReadAll(r.Body)
-		// if err == nil {
-		// 	fmt.Println(b)
-		// 	myString := string(b[:])
-		// 	fmt.Println(myString)
-		// 	fmt.Println(myString[12])
-		// }
+	})
 
+	r.Post("/dellmouton", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		var m Sheep
+
+		err := json.NewDecoder(r.Body).Decode(&m)
+
+		if err != nil {
+			fmt.Println(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		delete(f, m.Id)
+	})
+
+	r.Post("/updateMouton", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		var m Sheep
+
+		err := json.NewDecoder(r.Body).Decode(&m)
+
+		if err != nil {
+			fmt.Println(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if _, ok := f[m.Id]; ok {
+			AddSheep(f, m.Id, m.Id, m.Name, m.Age, m.Weight)
+		} else {
+			fmt.Println("Mouton non trouvé")
+			http.Error(w, "Mouton non trouvé", http.StatusNotFound)
+		}
 	})
 
 	http.ListenAndServe(":3333", r)
