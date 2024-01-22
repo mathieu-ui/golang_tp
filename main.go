@@ -62,7 +62,7 @@ func main() {
 		delete(f, m.Id)
 	})
 
-	r.Post("/updateMouton", func(w http.ResponseWriter, r *http.Request) {
+	r.Post("/updatemouton", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		var m Sheep
 
