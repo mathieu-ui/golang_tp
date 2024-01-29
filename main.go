@@ -50,16 +50,6 @@ func main() {
 
 	fmt.Println("Requête exécutée avec succès")
 
-	insertQuery := "INSERT INTO moutons (name, age, weight) VALUES ('juju', 10, 100)"
-
-	_, err = db.Exec(insertQuery)
-	if err != nil {
-		fmt.Println("Erreur lors de l'exécution de la requête d'ajout:", err)
-		return
-	}
-
-	fmt.Println("Requête d'ajout exécutée avec succès")
-
 
 	insertQuery1 := "SELECT * FROM moutons"
 	rows, err := db.Query(insertQuery1)
@@ -89,9 +79,6 @@ func main() {
 		return
 	}
 
-
-	f := make(Ferme)
-
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -100,7 +87,7 @@ func main() {
 	})
 
 	r.Get("/moutonlist", func(w http.ResponseWriter, r *http.Request) {
-		rows, err := db.Query("SELECT name, age, weight FROM moutons")
+		rows, err := db.Query("SELECT id, name, age, weight FROM moutons")
 		if err != nil {
 			fmt.Println("Erreur lors de l'exécution de la requête de sélection:", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -109,18 +96,19 @@ func main() {
 		defer rows.Close()
 
 		for rows.Next() {
+			var id int
 			var name string
 			var age float64
 			var weight float64
 
-			err := rows.Scan(&name, &age, &weight)
+			err := rows.Scan(&id, &name, &age, &weight)
 			if err != nil {
 				fmt.Println("Erreur lors de la lecture des données:", err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
-			a := "Nom: " + name + ", age: " + strconv.FormatFloat(age, 'f', 2, 64) + ", poids: " + strconv.FormatFloat(weight, 'f', 2, 64) + "\n"
+			a := "ID: " + strconv.Itoa(id) + ", Nom: " + name + ", age: " + strconv.FormatFloat(age, 'f', 2, 64) + ", poids: " + strconv.FormatFloat(weight, 'f', 2, 64) + "\n"
 			fmt.Println(a)
 			w.Write([]byte(a))
 		}
@@ -139,7 +127,15 @@ func main() {
 		}
 		fmt.Println(m)
 
-		AddSheep(f, m.Id, m.Id, m.Name, m.Age, m.Weight)
+		insertQuery := "INSERT INTO moutons (name, age, weight) VALUES ($1, $2, $3)"
+		_, err = db.Exec(insertQuery, m.Name, m.Age, m.Weight)
+		if err != nil {
+			fmt.Println("Erreur lors de l'exécution de la requête d'ajout:", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Println("Requête d'ajout exécutée avec succès")
 
 	})
 
@@ -155,7 +151,16 @@ func main() {
 			return
 		}
 
-		delete(f, m.Id)
+		deleteQuery := "DELETE FROM moutons WHERE name = $1 AND age = $2 AND weight = $3 AND id = $4"
+		
+		_, err = db.Exec(deleteQuery, m.Name, m.Age, m.Weight, m.Id)
+		if err != nil {
+		    fmt.Println("Erreur lors de l'exécution de la requête de suppression:", err)
+		    http.Error(w, err.Error(), http.StatusInternalServerError)
+		    return
+		}
+
+		fmt.Println("Mouton supprimé avec succès")
 	})
 
 	r.Post("/updatemouton", func(w http.ResponseWriter, r *http.Request) {
@@ -169,36 +174,25 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if _, ok := f[m.Id]; ok {
-			AddSheep(f, m.Id, m.Id, m.Name, m.Age, m.Weight)
-		} else {
-			fmt.Println("Mouton non trouvé")
-			http.Error(w, "Mouton non trouvé", http.StatusNotFound)
+
+		updateQuery := "UPDATE moutons SET name = $1, age = $2, weight = $3 WHERE id = $4"
+		_, err = db.Exec(updateQuery, m.Name, m.Age, m.Weight, m.Id)
+		if err != nil {
+			fmt.Println("Erreur lors de l'exécution de la requête de mise à jour:", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
+
+		fmt.Println("Mouton mis à jour avec succès")
 	})
 
 	http.ListenAndServe(":3333", r)
 
 }
 
-type Ferme map[int]Sheep
-
 type Sheep struct {
 	Id     int
 	Name   string
 	Age    int
 	Weight float64
-}
-
-func NewSheep(idSheep int, nameSheep string, ageSheep int, weightSheep float64) Sheep {
-	nSheep := Sheep{
-		Id:     idSheep,
-		Name:   nameSheep,
-		Age:    ageSheep,
-		Weight: weightSheep}
-	return nSheep
-}
-
-func AddSheep(f1 Ferme, cle int, id int, nom string, age int, poid float64) {
-	f1[cle] = NewSheep(id, nom, age, poid)
 }
